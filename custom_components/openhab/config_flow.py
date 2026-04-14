@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from homeassistant import config_entries
+from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
 import voluptuous as vol
@@ -53,6 +54,10 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_BASE_URL,
                         default=user_input.get(CONF_BASE_URL, "http://"),
                     ): str,
+                    vol.Optional(
+                        CONF_NAME,
+                        default=user_input.get(CONF_NAME, ""),
+                    ): str,
                     vol.Required(
                         CONF_AUTH_TYPE,
                         default=user_input.get(CONF_AUTH_TYPE, CONF_AUTH_TYPE_BASIC),
@@ -82,9 +87,8 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 user_input.get(CONF_USERNAME, ""),
                 user_input.get(CONF_PASSWORD, ""),
             ):
-                return self.async_create_entry(
-                    title=strip_ip(user_input[CONF_BASE_URL]), data=user_input
-                )
+                title = self.data.get(CONF_NAME) or strip_ip(user_input[CONF_BASE_URL])
+                return self.async_create_entry(title=title, data=user_input)
             errors["base"] = "auth"
 
         if user_input is None:
@@ -108,6 +112,100 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="credentials",
+            data_schema=vol.Schema(schema),
+            errors=errors,
+        )
+
+    async def async_step_reconfigure(
+        self,
+        user_input: dict[str, str] | None = None,
+    ):
+        """Step 1 of reconfigure: URL and auth type."""
+        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        current = entry.data if entry else {}
+
+        if user_input is not None:
+            self._reconfigure_data = {
+                CONF_BASE_URL: user_input[CONF_BASE_URL].rstrip("/"),
+                CONF_AUTH_TYPE: user_input[CONF_AUTH_TYPE],
+            }
+            return await self.async_step_reconfigure_credentials()
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_BASE_URL,
+                        default=current.get(CONF_BASE_URL, "http://"),
+                    ): str,
+                    vol.Required(
+                        CONF_AUTH_TYPE,
+                        default=current.get(CONF_AUTH_TYPE, CONF_AUTH_TYPE_BASIC),
+                    ): vol.In(AUTH_TYPES),
+                }
+            ),
+        )
+
+    async def async_step_reconfigure_credentials(
+        self,
+        user_input: dict[str, str] | None = None,
+    ):
+        """Step 2 of reconfigure: credentials."""
+        errors = {}
+        entry = self.hass.config_entries.async_get_entry(self.context["entry_id"])
+        current = entry.data if entry else {}
+        auth_type = self._reconfigure_data[CONF_AUTH_TYPE]
+
+        if user_input is not None:
+            base_url = self._reconfigure_data[CONF_BASE_URL]
+            auth_token = user_input.get(CONF_AUTH_TOKEN, "")
+            username = user_input.get(CONF_USERNAME, "")
+            password = user_input.get(CONF_PASSWORD, "")
+
+            try:
+                client = OpenHABApiClient(
+                    self.hass, base_url, auth_type, auth_token, username, password, True
+                )
+                await client.async_get_auth2_token()
+                client.CreateOpenHab()
+                await client.async_get_version()
+            except Exception:  # pylint: disable=broad-except
+                errors["base"] = "auth"
+            else:
+                return self.async_update_reload_and_abort(
+                    entry,
+                    data={
+                        **current,
+                        CONF_BASE_URL: base_url,
+                        CONF_AUTH_TYPE: auth_type,
+                        CONF_AUTH_TOKEN: auth_token,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                    },
+                )
+
+        if auth_type == CONF_AUTH_TYPE_TOKEN:
+            schema = {
+                vol.Required(
+                    CONF_AUTH_TOKEN,
+                    default=current.get(CONF_AUTH_TOKEN, ""),
+                ): cv.string,
+            }
+        else:
+            schema = {
+                vol.Optional(
+                    CONF_USERNAME,
+                    default=current.get(CONF_USERNAME, ""),
+                ): cv.string,
+                vol.Optional(
+                    CONF_PASSWORD,
+                    default=current.get(CONF_PASSWORD, ""),
+                ): cv.string,
+            }
+
+        return self.async_show_form(
+            step_id="reconfigure_credentials",
             data_schema=vol.Schema(schema),
             errors=errors,
         )

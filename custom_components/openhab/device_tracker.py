@@ -1,12 +1,10 @@
 """Device Tracker platform for openHAB."""
-from homeassistant.components.device_tracker import SourceType
-from homeassistant.components.device_tracker.config_entry import TrackerEntity
+from homeassistant.components.device_tracker import SourceType, TrackerEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DEVICE_TRACKER, DOMAIN, ITEMS_MAP
-from .device_classes_map import SENSOR_DEVICE_CLASS_MAP
+from .const import DEVICE_TRACKER, ITEMS_MAP
 from .entity import OpenHABEntity
 
 
@@ -16,7 +14,7 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Setup device_tracker platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     async_add_entities(
         OpenHABTracker(hass, coordinator, item)

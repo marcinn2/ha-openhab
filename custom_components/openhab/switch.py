@@ -8,7 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ITEMS_MAP, SWITCH, LOGGER
+from .const import ITEMS_MAP, SWITCH, LOGGER
 from .device_classes_map import SWITCH_DEVICE_CLASS_MAP
 from .entity import OpenHABEntity
 
@@ -19,7 +19,7 @@ async def async_setup_entry(
     async_add_devices: AddEntitiesCallback,
 ) -> None:
     """Setup sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     # Debug logging
     total_items = len(coordinator.data.values())

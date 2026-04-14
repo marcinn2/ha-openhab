@@ -11,7 +11,7 @@ from homeassistant.helpers.device_registry import DeviceEntryType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from openhab import items
 
-from .const import ATTRIBUTION, DOMAIN, NAME, VERSION, LOGGER
+from .const import DOMAIN, NAME, VERSION, LOGGER
 from .coordinator import OpenHABDataUpdateCoordinator
 from .icons_map import ICONS_MAP, ITEM_TYPE_MAP
 from .utils import strip_ip
@@ -133,10 +133,10 @@ class OpenHABEntity(CoordinatorEntity):
                 if device_class in name or device_class in label:
                     return device_class
 
-        return ""
+        return None
 
     @property
-    def icon(self) -> str:
+    def icon(self) -> str | None:
         """Return the icon of the switch."""
         category = self.item.category
         item_type = self.item.type_
@@ -144,44 +144,12 @@ class OpenHABEntity(CoordinatorEntity):
             return ICONS_MAP[category]
         if item_type in ITEM_TYPE_MAP:
             return ITEM_TYPE_MAP[item_type]
-        return ""
+        return None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return the state attributes."""
-        return None
-        """ debug code """
-        name = self.item.name
-        label = self.item.label
-        api_link = f"{self._base_url}/rest/items/{name}"
-        ui_link = f"{self._base_url}/settings/items/{name}"
-        is_group = bool(self.item.group)
-        attributes = {
-            "attribution": ATTRIBUTION,
-            "category": self.item.category,
-            "editable": self.item.editable,
-            "group_names": self.item.groupNames,
-            "hostname": self._host,
-            "id": f"{DOMAIN}_{name}",
-            "integration": DOMAIN,
-            "is_group": self.item.group,
-            "label": label,
-            "api_link": api_link,
-            "main_ui_link": ui_link,
-            "name": self.item.name,
-            "tags": self.item.tags,
-            "type": self.item.type_,
-            "raw_state": self.item._raw_state,
-            "unit_of_measure": str(self.item.unit_of_measure),
-        }
-
-        #if is_group and len(self.item.members):
-        #    attributes["members"] = self.item.members.keys()
-
-        if self.item.quantityType is not None:
-            attributes["quantity_type"] = self.item.quantityType
-
-        return attributes
+        return {}
 
     @callback
     def _handle_coordinator_update(self) -> None:
@@ -199,6 +167,4 @@ class OpenHABEntity(CoordinatorEntity):
     
     async def async_added_to_hass(self) -> None:
         """Connect to dispatcher listening for entity data notifications."""
-        self.async_on_remove(
-            self.coordinator.async_add_listener(self._handle_coordinator_update)
-        )
+        await super().async_added_to_hass()

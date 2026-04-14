@@ -10,7 +10,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, ITEMS_MAP, LIGHT
+from .const import ITEMS_MAP, LIGHT
 from .entity import OpenHABEntity
 from .utils import hsv_to_str
 
@@ -21,7 +21,7 @@ async def async_setup_entry(
     async_add_devices: AddEntitiesCallback,
 ) -> None:
     """Setup sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     color_lights = []
     for item in coordinator.data.values():

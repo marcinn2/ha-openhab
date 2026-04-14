@@ -16,20 +16,11 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.device_registry import DeviceEntryType
 
-from .const import DOMAIN, VERSION, NAME
-from .device_classes_map import SWITCH_DEVICE_CLASS_MAP
+from .const import DOMAIN, VERSION
 from .entity import OpenHABEntity
-
-TEMPERATURE_CELSIUS = "celsius"
-TEMPERATURE_FAHRENHEIT = "fahrenheit"
-DEFAULT_TEMPERATURE_UNIT = TEMPERATURE_CELSIUS
 
 from homeassistant.const import (
     ATTR_TEMPERATURE,
-    CONF_TEMPERATURE_UNIT,
-    PRECISION_HALVES,
-    PRECISION_TENTHS,
-    PRECISION_WHOLE,
     UnitOfTemperature,
 )
 
@@ -39,7 +30,7 @@ async def async_setup_entry(
     async_add_devices: AddEntitiesCallback,
 ) -> None:
     """Setup sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     async_add_devices(
         OpenHABClimate(hass, coordinator, item)
@@ -119,6 +110,16 @@ class OpenHABClimate(OpenHABEntity, ClimateEntity):
     @property
     def hvac_modes(self):
         return [HVACMode.HEAT, HVACMode.OFF]
+
+    @property
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current running hvac operation."""
+        if self.hvac_mode == HVACMode.OFF:
+            return HVACAction.OFF
+        current = self.item.devireg['attrs'].get('Heating', {}).get('value')
+        if current == 'ON':
+            return HVACAction.HEATING
+        return HVACAction.IDLE
 
     @property
     def preset_mode(self):

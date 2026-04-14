@@ -27,6 +27,19 @@ For these devices no external openHAB setup is needed anymore.
 * Loosen `python-openhab` version pin from `==2.17.1` to `>=2.17.1`  
   Allows HA to install the latest compatible version instead of a pinned older release
 
+
+# 2026: HA 2026.03+ compatibility fixes, reconfigure flow, and setup improvements
+* Fix `SensorEntity` using deprecated `state` property — replaced with `native_value`
+* Fix `device_class` and `icon` properties returning `""` instead of `None` when unset
+* Fix `extra_state_attributes` returning `None` and remove unreachable debug code
+* Fix `async_added_to_hass` not calling `super()` in `CoordinatorEntity`, causing duplicate listener registration
+* Fix deprecated `TrackerEntity` import path (`device_tracker.config_entry` → `device_tracker`)
+* Fix media player entities never loading — `item.type_ in list` instead of `item.type_ == list`
+* Migrate runtime data storage from `hass.data[DOMAIN]` to `entry.runtime_data` (HA 2025.x+ pattern)
+* Add `hvac_action` property to `ClimateEntity` (required by HA when HEAT mode is supported)
+* Add reconfigure flow — URL and auth settings can now be changed via Settings → Devices & Services → openHAB → ⋮ → Reconfigure
+* Add custom integration name field to setup wizard — optionally name the integration during initial setup (defaults to hostname if left blank)
+
 # openHAB custom integration for Home Assistant
 
 [![GitHub Release][releases-shield]][releases]

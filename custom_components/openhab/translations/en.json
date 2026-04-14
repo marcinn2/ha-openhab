@@ -6,6 +6,7 @@
                 "description": "If you need help with the configuration have a look here: https://github.com/kubawolanin/ha-openhab",
                 "data": {
                     "base_url": "Base URL",
+                    "name": "Integration name (leave blank to use hostname)",
                     "auth_type": "Authentication type"
                 }
             },
@@ -17,12 +18,31 @@
                     "password": "Password",
                     "auth_token": "API Token"
                 }
+            },
+            "reconfigure": {
+                "title": "Reconfigure openHAB",
+                "description": "Update the openHAB URL and authentication type.",
+                "data": {
+                    "base_url": "Base URL",
+                    "auth_type": "Authentication type"
+                }
+            },
+            "reconfigure_credentials": {
+                "title": "Reconfigure openHAB",
+                "description": "Update the authentication credentials.",
+                "data": {
+                    "username": "Username",
+                    "password": "Password",
+                    "auth_token": "API Token"
+                }
             }
         },
         "error": {
             "auth": "Username/Password is wrong."
         },
-        "abort": {}
+        "abort": {
+            "reconfigure_successful": "Re-configuration was successful."
+        }
     },
     "options": {
         "step": {

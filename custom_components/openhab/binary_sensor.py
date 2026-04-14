@@ -4,7 +4,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import BINARY_SENSOR, DOMAIN, ITEMS_MAP
+from .const import BINARY_SENSOR, ITEMS_MAP
 from .device_classes_map import BINARY_SENSOR_DEVICE_CLASS_MAP
 from .entity import OpenHABEntity
 
@@ -15,7 +15,7 @@ async def async_setup_entry(
     async_add_devices: AddEntitiesCallback,
 ) -> None:
     """Setup binary_sensor platform."""
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
     
     binary_sensors = []
     for item in coordinator.data.values():
