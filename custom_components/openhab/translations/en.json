@@ -38,7 +38,9 @@
             }
         },
         "error": {
-            "auth": "Username/Password is wrong."
+            "auth": "Username/Password is wrong.",
+            "cannot_connect": "Cannot connect to openHAB. Check the URL and make sure openHAB is running.",
+            "unknown": "Unexpected error. Check the Home Assistant logs for details."
         },
         "abort": {
             "reconfigure_successful": "Re-configuration was successful."

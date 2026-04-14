@@ -1,10 +1,13 @@
 """Adds config flow for openHAB."""
 from __future__ import annotations
 
+import functools
+
 from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+import requests
 import voluptuous as vol
 
 from .api import OpenHABApiClient
@@ -22,6 +25,35 @@ from .const import (
     PLATFORMS,
 )
 from .utils import strip_ip
+
+_CONNECTION_ERRORS = (
+    requests.exceptions.ConnectionError,
+    requests.exceptions.Timeout,
+    requests.exceptions.ConnectTimeout,
+    OSError,  # catches ConnectionRefusedError, TimeoutError, etc.
+)
+
+
+def _is_connection_error(err: Exception) -> bool:
+    """Return True if err (or any chained cause) is a connection-level failure."""
+    candidate = err
+    while candidate is not None:
+        if isinstance(candidate, _CONNECTION_ERRORS):
+            return True
+        candidate = getattr(candidate, "__cause__", None) or getattr(candidate, "__context__", None)
+    return False
+
+
+def _is_auth_error(err: Exception) -> bool:
+    """Return True if err indicates an HTTP 401/403 response."""
+    candidate = err
+    while candidate is not None:
+        if isinstance(candidate, requests.exceptions.HTTPError):
+            resp = getattr(candidate, "response", None)
+            if resp is not None and resp.status_code in (401, 403):
+                return True
+        candidate = getattr(candidate, "__cause__", None) or getattr(candidate, "__context__", None)
+    return False
 
 
 class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
@@ -80,16 +112,17 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None and (
             CONF_AUTH_TOKEN in user_input or CONF_USERNAME in user_input
         ):
-            if await self._test_credentials(
+            error = await self._test_credentials(
                 user_input[CONF_BASE_URL],
                 user_input[CONF_AUTH_TYPE],
                 user_input.get(CONF_AUTH_TOKEN, ""),
                 user_input.get(CONF_USERNAME, ""),
                 user_input.get(CONF_PASSWORD, ""),
-            ):
+            )
+            if error is None:
                 title = self.data.get(CONF_NAME) or strip_ip(user_input[CONF_BASE_URL])
                 return self.async_create_entry(title=title, data=user_input)
-            errors["base"] = "auth"
+            errors["base"] = error
 
         if user_input is None:
             user_input = {}
@@ -163,15 +196,11 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             username = user_input.get(CONF_USERNAME, "")
             password = user_input.get(CONF_PASSWORD, "")
 
-            try:
-                client = OpenHABApiClient(
-                    self.hass, base_url, auth_type, auth_token, username, password, True
-                )
-                await client.async_get_auth2_token()
-                client.CreateOpenHab()
-                await client.async_get_version()
-            except Exception:  # pylint: disable=broad-except
-                errors["base"] = "auth"
+            error = await self._test_credentials(
+                base_url, auth_type, auth_token, username, password
+            )
+            if error:
+                errors["base"] = error
             else:
                 return self.async_update_reload_and_abort(
                     entry,
@@ -223,19 +252,31 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         auth_token: str,
         username: str,
         password: str,
-    ):
-        """Return true if credentials is valid."""
+    ) -> str | None:
+        """Test credentials. Returns None on success, or an error key string on failure."""
         try:
-            client = OpenHABApiClient(
-                self.hass, base_url, auth_type, auth_token, username, password, True
-            )  # pylint: disable=broad-except
-            x = await client.async_get_auth2_token()
-            client.CreateOpenHab()
+            # Run the constructor in an executor: OpenHABApiClient.__init__ calls
+            # CreateOpenHab() which loads SSL certificates via requests/certifi —
+            # a blocking operation that must not run on the event loop thread.
+            client = await self.hass.async_add_executor_job(
+                functools.partial(
+                    OpenHABApiClient,
+                    self.hass, base_url, auth_type, auth_token, username, password, True,
+                )
+            )
+            await client.async_get_auth2_token()
+            # CreateOpenHab() may need to run again after token acquisition
+            # (OAuth2 basic-auth flow). Also blocking — run in executor.
+            await self.hass.async_add_executor_job(client.CreateOpenHab)
             await client.async_get_version()
-            return True
-        except Exception as error:  # pylint: disable=broad-except
-            raise error
-        return False
+            return None
+        except Exception as err:  # pylint: disable=broad-except
+            LOGGER.debug("openHAB connection test failed (%s): %s", type(err).__name__, err)
+            if _is_connection_error(err):
+                return "cannot_connect"
+            if _is_auth_error(err):
+                return "auth"
+            return "unknown"
 
 
 class OpenHABOptionsFlowHandler(config_entries.OptionsFlow):

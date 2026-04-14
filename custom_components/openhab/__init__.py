@@ -4,6 +4,8 @@ Custom integration to integrate openHAB with Home Assistant.
 For more details about this integration, please refer to
 https://github.com/kubawolanin/ha-openhab
 """
+import functools
+
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -27,20 +29,26 @@ async def async_setup_entry(
 ) -> bool:
     """Set up this integration using UI."""
     LOGGER.info(STARTUP_MESSAGE)
-    api_client = OpenHABApiClient(
-        hass=hass,
-        base_url=entry.data[CONF_BASE_URL],
-        auth_type=entry.data[CONF_AUTH_TYPE],
-        auth_token=entry.data.get(CONF_AUTH_TOKEN, ""),
-        username=entry.data.get(CONF_USERNAME, ""),
-        password=entry.data.get(CONF_PASSWORD, ""),
+    # Run the constructor in an executor: OpenHABApiClient.__init__ calls
+    # CreateOpenHab() which loads SSL certificates — a blocking operation
+    # that must not run on the event loop thread (HA 2026.x enforces this).
+    api_client = await hass.async_add_executor_job(
+        functools.partial(
+            OpenHABApiClient,
+            hass,
+            entry.data[CONF_BASE_URL],
+            entry.data[CONF_AUTH_TYPE],
+            entry.data.get(CONF_AUTH_TOKEN, ""),
+            entry.data.get(CONF_USERNAME, ""),
+            entry.data.get(CONF_PASSWORD, ""),
+        )
     )
 
-    if api_client.openhab==False:
+    if api_client.openhab == False:
         LOGGER.info("OpenHab Recreating Oauth2 Token")
         api_client._creating_token = True
         await api_client.async_get_auth2_token()
-        api_client.CreateOpenHab()
+        await hass.async_add_executor_job(api_client.CreateOpenHab)
 
     coordinator = OpenHABDataUpdateCoordinator(hass, api=api_client)
     await coordinator.async_config_entry_first_refresh()
