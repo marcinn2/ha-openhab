@@ -71,10 +71,12 @@ def isDeviDevice(k, devi_things):
         return k.find('DeviReg')==0
 
 def fetch_all_items_new(oh):
+    from .const import LOGGER
     try:
         return fetch_all_items(oh)
-    except:
-        return {}
+    except Exception as err:
+        LOGGER.warning("Failed to fetch items from openHAB: %s (%s)", err, type(err).__name__)
+        raise
 
 def fetch_all_items(oh):
     import json
@@ -262,6 +264,17 @@ class OpenHABApiClient:
         self.openhab = False
         self.CreateOpenHab()
 
+
+    def get_bearer_token(self) -> str | None:
+        """Return the current OAuth2 access token from the token cache, or None."""
+        try:
+            if self.oauth2_token_cache.is_file():
+                with self.oauth2_token_cache.open("r") as fhdl:
+                    token_data = json.load(fhdl)
+                    return token_data.get("access_token")
+        except Exception:  # pylint: disable=broad-except
+            pass
+        return None
 
     async def async_get_auth2_token(self) -> str:
         self._creating_token = False

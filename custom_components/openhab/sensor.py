@@ -1,4 +1,6 @@
 """Sensor platform for openHAB."""
+from datetime import datetime
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -47,6 +49,24 @@ class OpenHABSensor(OpenHABEntity, SensorEntity):
     _attr_device_class_map = SENSOR_DEVICE_CLASS_MAP
 
     @property
+    def device_class(self):
+        """Return device class, forcing timestamp for DateTime items."""
+        if self.item.type_ == "DateTime":
+            return "timestamp"
+        return super().device_class
+
+    @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
+        if self.item.type_ == "DateTime":
+            state = self.item._state
+            if isinstance(state, datetime):
+                return state
+            if isinstance(state, str) and state:
+                try:
+                    return datetime.fromisoformat(state)
+                except (ValueError, TypeError):
+                    LOGGER.warning("Could not parse DateTime state for %s: %r", self.entity_id, state)
+                    return None
+            return None
         return self.item._state

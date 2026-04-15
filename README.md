@@ -28,7 +28,7 @@ For these devices no external openHAB setup is needed anymore.
   Allows HA to install the latest compatible version instead of a pinned older release
 
 
-# 2026: HA 2026.03+ compatibility fixes, reconfigure flow, and setup improvements
+# 2026: HA 2026.03+ compatibility fixes, reconfigure flow, and other improvements: Work by [marcinn2](https://github.com/marcinn2/ha-openhab)
 * Fix `SensorEntity` using deprecated `state` property — replaced with `native_value`
 * Fix `device_class` and `icon` properties returning `""` instead of `None` when unset
 * Fix `extra_state_attributes` returning `None` and remove unreachable debug code
@@ -39,6 +39,13 @@ For these devices no external openHAB setup is needed anymore.
 * Add `hvac_action` property to `ClimateEntity` (required by HA when HEAT mode is supported)
 * Add reconfigure flow — URL and auth settings can now be changed via Settings → Devices & Services → openHAB → ⋮ → Reconfigure
 * Add custom integration name field to setup wizard — optionally name the integration during initial setup (defaults to hostname if left blank)
+* Fix meaningful connection errors in setup wizard — distinguishes "cannot connect" from auth failures instead of generic error
+* Fix blocking SSL certificate load on HA event loop — `OpenHABApiClient` constructor now runs in executor thread (fixes HA 2026.x blocking call detection)
+* Fix `DateTime` sensor device class — forced to `timestamp` for all `DateTimeItem` objects; state parsed from ISO 8601 string to proper `datetime` object
+* Fix silent item fetch failure — `fetch_all_items` exceptions are now propagated instead of silently returning empty dict; empty result raises `UpdateFailed`
+* Fix SSE not working with openHAB 3 — added `ItemStateEvent` (OH3 event name) alongside OH4's `ItemStateUpdatedEvent`; SSE now uses OAuth2 bearer token instead of basic auth
+* Fix SSE clean-close reconnect — when server closes the SSE connection without error the integration now re-enables polling, waits before reconnecting, and logs the event; previously items went stale silently
+* Fix SSE per-second state write storm — SSE updates now write state only for the changed entity instead of triggering `async_write_ha_state()` on every entity in the integration
 
 # openHAB custom integration for Home Assistant
 
@@ -127,8 +134,8 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 [openhab]: https://openhab.org
 [buymecoffee]: https://www.buymeacoffee.com/kubawolanin
 [buymecoffeebadge]: https://img.shields.io/badge/buy%20me%20a%20coffee-donate-yellow.svg?style=for-the-badge
-[commits-shield]: https://img.shields.io/github/commit-activity/y/MrDix/ha-openhab.svg?style=for-the-badge
-[commits]: https://github.com/MrDix/ha-openhab/commits/master
+[commits-shield]: https://img.shields.io/github/commit-activity/y/marcinn2/ha-openhab.svg?style=for-the-badge
+[commits]: https://github.com/marcinn2/ha-openhab/commits/master
 [hacs]: https://github.com/ludeeus/hacs
 [hacsbadge]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
 [discord]: https://discord.gg/Qa5fW2R
@@ -136,7 +143,7 @@ If you want to contribute to this please read the [Contribution guidelines](CONT
 [exampleimg]: example.png
 [forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg?style=for-the-badge
 [forum]: https://community.home-assistant.io/
-[license-shield]: https://img.shields.io/github/license/kubawolanin/ha-openhab.svg?style=for-the-badge
-[maintenance-shield]: https://img.shields.io/badge/maintainer-MrDix-blue.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/MrDix/ha-openhab.svg?style=for-the-badge
-[releases]: https://github.com/MrDix/ha-openhab/releases
+[license-shield]: https://img.shields.io/github/license/marcinn2/ha-openhab.svg?style=for-the-badge
+[maintenance-shield]: https://img.shields.io/badge/maintainer-marcinn2-blue.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/marcinn2/ha-openhab.svg?style=for-the-badge
+[releases]: https://github.com/marcinn2/ha-openhab/releases

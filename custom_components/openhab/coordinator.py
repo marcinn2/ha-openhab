@@ -184,18 +184,24 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
         """Listen to openHAB SSE events and update entity states in real-time."""
         sse_url = f"{self.api._rest_url}/events"
 
-        headers = {}
-        if self.api._auth_type == "token" and self.api._auth_token:
-            headers["X-OPENHAB-TOKEN"] = self.api._auth_token
-
         retry_delay = 5
         first_connect = True
 
         while not self._stop_sse:
             try:
                 auth = None
-                if self.api._auth_type == "OAuth2" and self.api._username:
-                    auth = aiohttp.BasicAuth(self.api._username, self.api._password)
+                headers = {}
+
+                if self.api._auth_type == "token" and self.api._auth_token:
+                    headers["X-OPENHAB-TOKEN"] = self.api._auth_token
+                elif self.api._auth_type == "OAuth2":
+                    # Prefer OAuth2 bearer token (required by openHAB 3+).
+                    # Fall back to HTTP Basic auth if no token is cached yet.
+                    bearer = self.api.get_bearer_token()
+                    if bearer:
+                        headers["Authorization"] = f"Bearer {bearer}"
+                    elif self.api._username:
+                        auth = aiohttp.BasicAuth(self.api._username, self.api._password)
 
                 if not self._sse_session:
                     self._sse_session = aiohttp.ClientSession()
@@ -223,14 +229,13 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
 
                     # Connection confirmed - disable polling now that SSE is live.
                     if self.update_interval is not None:
-                        self.update_method = None
                         self.update_interval = None
-                        LOGGER.info(
+                        LOGGER.warning(
                             "SSE connection established - polling disabled, "
                             "SSE is the sole update source"
                         )
                     else:
-                        LOGGER.info("SSE reconnected")
+                        LOGGER.warning("SSE reconnected")
 
                     # After a reconnect, fetch fresh data from the API to catch
                     # any state changes that occurred while SSE was disconnected.
@@ -271,6 +276,17 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
 
                         except Exception as err:  # noqa: BLE001
                             LOGGER.debug("Error processing SSE line: %s", err)
+
+                    # The async-for loop exits when the server closes the connection
+                    # cleanly (no exception).  Re-enable polling so items stay fresh
+                    # during the reconnect gap, and wait before retrying.
+                    if not self._stop_sse:
+                        LOGGER.warning(
+                            "SSE connection closed by server, reconnecting in %s s",
+                            retry_delay,
+                        )
+                        self._enable_polling()
+                        await asyncio.sleep(retry_delay)
 
             except asyncio.CancelledError:
                 LOGGER.info("SSE listener cancelled")
@@ -335,7 +351,10 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
             return
 
         # --- State change / update events ---
-        if event_type in ("ItemStateChangedEvent", "ItemStateUpdatedEvent"):
+        # ItemStateChangedEvent  - OH3 + OH4: fires only when value actually changes
+        # ItemStateUpdatedEvent  - OH4: fires on every update (even if same value)
+        # ItemStateEvent         - OH3: equivalent of OH4's ItemStateUpdatedEvent
+        if event_type in ("ItemStateChangedEvent", "ItemStateUpdatedEvent", "ItemStateEvent"):
             # Suppress echo events for commands explicitly sent by this integration.
             cmd_time = self._recent_commands.get(item_name)
             if cmd_time and (time.time() - cmd_time) < self._command_ignore_duration:
@@ -350,13 +369,20 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
             payload_str = event_data.get("payload", "")
 
             if payload_str and self._update_item_from_sse_payload(item_name, payload_str):
-                # Success: push updated data to all entity listeners immediately.
-                self.async_set_updated_data(self.data)
+                # Notify only the specific entity that changed, not the whole
+                # coordinator (which would write HA state for every entity).
+                entity = self.ha_items.get(item_name)
+                if entity is not None:
+                    entity.async_write_ha_state()
+                else:
+                    # Entity not registered yet — fall back to full coordinator notify.
+                    self.async_set_updated_data(self.data)
             else:
                 # Fallback: item not yet loaded or payload malformed.
-                LOGGER.debug(
-                    "SSE direct update failed for %s - falling back to API refresh",
+                LOGGER.warning(
+                    "SSE direct update failed for %s (type=%s) - falling back to API refresh",
                     item_name,
+                    event_type,
                 )
                 await self._refresh_debouncer.async_call()
 
@@ -412,6 +438,8 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
             self.is_online = bool(items)
 
             LOGGER.info("Coordinator fetched %d items from openHAB", len(items))
+            if not items:
+                raise UpdateFailed("openHAB returned no items — check openHAB is running and items are configured")
 
             # Log item type distribution for debugging
             item_types: dict = {}
