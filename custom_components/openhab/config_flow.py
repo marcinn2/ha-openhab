@@ -7,6 +7,8 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.selector import BooleanSelector
+
 import requests
 import voluptuous as vol
 
@@ -69,14 +71,12 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle a flow initialized by the user."""
         errors = {}
 
-        LOGGER.info(user_input)
-
         if user_input is not None:
             self.data = user_input
-            return await self.async_step_credentials(user_input)
+            return await self.async_step_credentials()
 
-        if user_input is None:
-            user_input = {}
+        # Pre-populate with previously entered values when navigating back.
+        defaults = self.data or {}
 
         return self.async_show_form(
             step_id="user",
@@ -84,50 +84,54 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         CONF_BASE_URL,
-                        default=user_input.get(CONF_BASE_URL, "http://"),
+                        default=defaults.get(CONF_BASE_URL, "http://"),
                     ): str,
                     vol.Optional(
                         CONF_NAME,
-                        default=user_input.get(CONF_NAME, ""),
+                        default=defaults.get(CONF_NAME, ""),
                     ): str,
                     vol.Required(
                         CONF_AUTH_TYPE,
-                        default=user_input.get(CONF_AUTH_TYPE, CONF_AUTH_TYPE_BASIC),
+                        default=defaults.get(CONF_AUTH_TYPE, CONF_AUTH_TYPE_BASIC),
                     ): vol.In(AUTH_TYPES),
                 }
             ),
             errors=errors,
+            last_step=False,
         )
 
     async def async_step_credentials(
         self,
         user_input: dict[str, str] | None = None,
     ):
-        """Handle a flow initialized by the user."""
+        """Handle credentials step — called with None when first shown or navigating back."""
         errors = {}
 
-        user_input[CONF_BASE_URL] = self.data[CONF_BASE_URL].rstrip('/')
-        user_input[CONF_AUTH_TYPE] = self.data[CONF_AUTH_TYPE]
+        auth_type = self.data[CONF_AUTH_TYPE]
+        base_url = self.data[CONF_BASE_URL].rstrip("/")
 
-        if user_input is not None and (
-            CONF_AUTH_TOKEN in user_input or CONF_USERNAME in user_input
-        ):
-            error = await self._test_credentials(
-                user_input[CONF_BASE_URL],
-                user_input[CONF_AUTH_TYPE],
-                user_input.get(CONF_AUTH_TOKEN, ""),
-                user_input.get(CONF_USERNAME, ""),
-                user_input.get(CONF_PASSWORD, ""),
-            )
-            if error is None:
-                title = self.data.get(CONF_NAME) or strip_ip(user_input[CONF_BASE_URL])
-                return self.async_create_entry(title=title, data=user_input)
-            errors["base"] = error
+        if user_input is not None:
+            if user_input.get("go_back"):
+                return await self.async_step_user(None)
+
+            if CONF_AUTH_TOKEN in user_input or CONF_USERNAME in user_input:
+                error = await self._test_credentials(
+                    base_url,
+                    auth_type,
+                    user_input.get(CONF_AUTH_TOKEN, ""),
+                    user_input.get(CONF_USERNAME, ""),
+                    user_input.get(CONF_PASSWORD, ""),
+                )
+                if error is None:
+                    entry_data = {**self.data, CONF_BASE_URL: base_url, **user_input}
+                    title = self.data.get(CONF_NAME) or strip_ip(base_url)
+                    return self.async_create_entry(title=title, data=entry_data)
+                errors["base"] = error
 
         if user_input is None:
             user_input = {}
 
-        if user_input[CONF_AUTH_TYPE] == CONF_AUTH_TYPE_BASIC:
+        if auth_type == CONF_AUTH_TYPE_BASIC:
             schema = {
                 vol.Optional(
                     CONF_USERNAME, default=user_input.get(CONF_USERNAME, "")
@@ -135,18 +139,21 @@ class OpenHABFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 vol.Optional(
                     CONF_PASSWORD, default=user_input.get(CONF_PASSWORD, "")
                 ): cv.string,
+                vol.Optional("go_back", default=False): BooleanSelector(),
             }
-        elif user_input[CONF_AUTH_TYPE] == CONF_AUTH_TYPE_TOKEN:
+        elif auth_type == CONF_AUTH_TYPE_TOKEN:
             schema = {
                 vol.Required(
                     CONF_AUTH_TOKEN, default=user_input.get(CONF_AUTH_TOKEN, "")
-                ): cv.string,  # cv.matches_regex(r"^(oh)\\.(.+)\\.(.+)$"),
+                ): cv.string,
+                vol.Optional("go_back", default=False): BooleanSelector(),
             }
 
         return self.async_show_form(
             step_id="credentials",
             data_schema=vol.Schema(schema),
             errors=errors,
+            last_step=True,
         )
 
     async def async_step_reconfigure(

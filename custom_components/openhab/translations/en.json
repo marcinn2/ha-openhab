@@ -16,7 +16,8 @@
                 "data": {
                     "username": "Username",
                     "password": "Password",
-                    "auth_token": "API Token"
+                    "auth_token": "API Token",
+                    "go_back": "← Back to connection settings"
                 }
             },
             "reconfigure": {

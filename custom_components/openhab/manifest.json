@@ -1,9 +1,9 @@
 {
   "domain": "openhab",
   "name": "openHAB",
-  "documentation": "https://github.com/MrDix/ha-openhab",
+  "documentation": "https://github.com/marcinn2/ha-openhab",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/MrDix/ha-openhab/issues",
+  "issue_tracker": "https://github.com/marcinn2/ha-openhab/issues",
   "requirements": [
     "zeroconf",
     "bs4",
@@ -20,10 +20,12 @@
     "climate"
   ],
   "version": "0.2",
+  "homeassistant": "2026.3.0",
   "config_flow": true,
   "codeowners": [
     "@kubawolanin",
     "@bob-tm",
-    "@MrDix"
+    "@MrDix",
+    "@marcinn2"
   ]
 }
