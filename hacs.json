@@ -1,6 +1,6 @@
 {
     "name": "openHAB",
-    "hacs": "0.3",
+    "hacs": "2.0",
     "render_readme": true,
     "domains": [
         "binary_sensor",

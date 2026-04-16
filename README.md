@@ -77,7 +77,7 @@ _Component to integrate with [openHAB][openHAB]._
 ## HACS Installation
 
 1. Go to http://homeassistant.local:8123/hacs/integrations
-1. Add `https://github.com/MrDix/ha-openhab` custom integration repository
+1. Add `https://github.com/marcinn2/ha-openhab` custom integration repository
 1. Download the openHAB repository
 1. Go to http://homeassistant.local:8123/config/integrations and add new integration
 1. Choose "openHAB" from the list and follow the config flow steps

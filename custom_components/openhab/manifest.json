@@ -19,7 +19,7 @@
     "switch",
     "climate"
   ],
-  "version": "0.2",
+  "version": "0.3",
   "homeassistant": "2026.3.0",
   "config_flow": true,
   "codeowners": [
