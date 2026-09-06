@@ -59,6 +59,8 @@ async def async_setup_entry(
 class OpenHABBinarySwitch(OpenHABEntity, SwitchEntity):
     """openHAB switch class."""
 
+    _platform_domain = SWITCH
+
     _attr_device_class_map = SWITCH_DEVICE_CLASS_MAP
 
     async def async_turn_on(self, **kwargs: dict[str, Any]) -> None:

@@ -26,6 +26,8 @@ async def async_setup_entry(
 class OpenHABTracker(OpenHABEntity, TrackerEntity):
     """openHAB device_tracker class."""
 
+    _platform_domain = DEVICE_TRACKER
+
     _attr_device_class_map = []
 
     @property

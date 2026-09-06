@@ -46,6 +46,8 @@ async def async_setup_entry(
 class OpenHABSensor(OpenHABEntity, SensorEntity):
     """openHAB Sensor class."""
 
+    _platform_domain = SENSOR
+
     _attr_device_class_map = SENSOR_DEVICE_CLASS_MAP
 
     @property

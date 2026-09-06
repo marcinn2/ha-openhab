@@ -16,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.device_registry import DeviceEntryType
 
-from .const import DOMAIN, VERSION
+from .const import CLIMATE, DOMAIN, VERSION
 from .entity import OpenHABEntity
 
 from homeassistant.const import (
@@ -40,6 +40,7 @@ async def async_setup_entry(
 
 
 class OpenHABClimate(OpenHABEntity, ClimateEntity):
+    _platform_domain = CLIMATE
     _attr_device_class_map = []
 
     @property

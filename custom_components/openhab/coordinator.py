@@ -197,7 +197,10 @@ class OpenHABDataUpdateCoordinator(DataUpdateCoordinator):
                 elif self.api._auth_type == "OAuth2":
                     # Prefer OAuth2 bearer token (required by openHAB 3+).
                     # Fall back to HTTP Basic auth if no token is cached yet.
-                    bearer = self.api.get_bearer_token()
+                    # Reads the token cache file — run off the event loop.
+                    bearer = await self.hass.async_add_executor_job(
+                        self.api.get_bearer_token
+                    )
                     if bearer:
                         headers["Authorization"] = f"Bearer {bearer}"
                     elif self.api._username:

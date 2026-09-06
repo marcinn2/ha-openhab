@@ -266,7 +266,11 @@ class OpenHABApiClient:
 
 
     def get_bearer_token(self) -> str | None:
-        """Return the current OAuth2 access token from the token cache, or None."""
+        """Return the current OAuth2 access token from the token cache, or None.
+
+        Reads from disk — blocking. Call it via ``async_add_executor_job``
+        from async code.
+        """
         try:
             if self.oauth2_token_cache.is_file():
                 with self.oauth2_token_cache.open("r") as fhdl:
@@ -276,14 +280,21 @@ class OpenHABApiClient:
             pass
         return None
 
+    def _write_token_cache(self, oauth2_token) -> None:
+        """Write the OAuth2 token to the cache file (blocking)."""
+        with self.oauth2_token_cache.open('w') as fhdl:
+            json.dump(oauth2_token, fhdl, indent=2, sort_keys=True)
+
     async def async_get_auth2_token(self) -> str:
         self._creating_token = False
 
         if self.auth2 and len(self._username)>0:
             oauth2_token = await self.hass.async_add_executor_job(oauth2_helper.get_oauth2_token, self._base_url, self._username, self._password)
             if oauth2_token:
-                with self.oauth2_token_cache.open('w') as fhdl:
-                    json.dump(oauth2_token, fhdl, indent=2, sort_keys=True)
+                # File I/O must not run on the event loop thread.
+                await self.hass.async_add_executor_job(
+                    self._write_token_cache, oauth2_token
+                )
 
                 return True
         return False

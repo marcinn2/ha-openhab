@@ -46,6 +46,9 @@ For these devices no external openHAB setup is needed anymore.
 * Fix SSE not working with openHAB 3 — added `ItemStateEvent` (OH3 event name) alongside OH4's `ItemStateUpdatedEvent`; SSE now uses OAuth2 bearer token instead of basic auth
 * Fix SSE clean-close reconnect — when server closes the SSE connection without error the integration now re-enables polling, waits before reconnecting, and logs the event; previously items went stale silently
 * Fix SSE per-second state write storm — SSE updates now write state only for the changed entity instead of triggering `async_write_ha_state()` on every entity in the integration
+* Fix entity IDs using the integration domain instead of the platform domain — entities were generated as `openhab.oh_<item>` rather than `switch.oh_<item>`, `sensor.oh_<item>` etc.; HA warned "sets an entity ID with wrong domain" and would have rejected them in HA 2027.5.0. Existing entity IDs are unaffected (the registry keeps them), and `unique_id` is unchanged
+* Fix blocking file I/O on the event loop in the OAuth2 token cache — the token write in `async_get_auth2_token()` and the bearer-token read used by the SSE listener now run in an executor (HA 2026.x logs "Detected blocking call to open")
+* Fix update listener leak on reload — `add_update_listener()` is now registered via `entry.async_on_unload()` and `async_reload_entry` delegates to `hass.config_entries.async_reload()`; previously each reload left another listener behind, so one options change triggered a reload per past reload
 
 # openHAB custom integration for Home Assistant
 

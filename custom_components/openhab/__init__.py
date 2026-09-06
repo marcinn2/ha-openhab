@@ -63,7 +63,10 @@ async def async_setup_entry(
             #)
     await hass.config_entries.async_forward_entry_setups(entry, coordinator.platforms)
 
-    entry.add_update_listener(async_reload_entry)
+    # Registered via async_on_unload so the listener is removed when the entry
+    # unloads; without it every reload would leave another listener behind and
+    # a single options change would trigger one reload per past reload.
+    entry.async_on_unload(entry.add_update_listener(async_reload_entry))
 
     return True
 
@@ -82,5 +85,4 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_reload_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Reload config entry."""
-    await async_unload_entry(hass, entry)
-    await async_setup_entry(hass, entry)
+    await hass.config_entries.async_reload(entry.entry_id)

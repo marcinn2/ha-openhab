@@ -46,6 +46,8 @@ async def async_setup_entry(
 class OpenHABLightColor(OpenHABEntity, LightEntity):
     """openHAB Color Light class."""
 
+    _platform_domain = LIGHT
+
     _attr_device_class_map = []
     _attr_color_mode = ColorMode.BRIGHTNESS
     _attr_supported_color_modes = {ColorMode.BRIGHTNESS, ColorMode.HS}
@@ -95,6 +97,8 @@ class OpenHABLightColor(OpenHABEntity, LightEntity):
 
 class OpenHABLightDimmer(OpenHABEntity, LightEntity):
     """openHAB Dimmer Light class."""
+
+    _platform_domain = LIGHT
 
     _attr_device_class_map = []
     _attr_color_mode = ColorMode.BRIGHTNESS

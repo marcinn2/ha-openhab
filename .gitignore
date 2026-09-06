@@ -9,3 +9,7 @@ venv
 /temp/
 *.ps1
 hacs_custom_repos_backup.json
+.DS_Store
+*/.DS_Store
+.campaign*.json
+companion.yml

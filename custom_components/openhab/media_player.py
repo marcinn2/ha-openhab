@@ -54,6 +54,8 @@ async def async_setup_entry(
 class OpenHABPlayer(OpenHABEntity, MediaPlayerEntity):
     """openHAB Player class."""
 
+    _platform_domain = MEDIA_PLAYER
+
     _attr_device_class_map = MEDIA_PLAYER_DEVICE_CLASS_MAP
 
     # def __init__(

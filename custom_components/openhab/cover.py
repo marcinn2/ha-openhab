@@ -34,6 +34,8 @@ async def async_setup_entry(
 class OpenHABCover(OpenHABEntity, CoverEntity):
     """openHAB Cover class."""
 
+    _platform_domain = COVER
+
     _attr_device_class_map = COVER_DEVICE_CLASS_MAP
 
     @property

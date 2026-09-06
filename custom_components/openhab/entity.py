@@ -37,6 +37,13 @@ class OpenHABEntity(CoordinatorEntity):
     coordinator: OpenHABDataUpdateCoordinator
     _attr_device_class_map: List | None
 
+    # HA platform domain this entity belongs to (e.g. "switch", "light").
+    # Every concrete subclass must override this: the entity_id domain has to
+    # match the platform the entity is added to, otherwise HA logs a
+    # "sets an entity ID with wrong domain" warning and will stop accepting
+    # the entity in HA 2027.5.0.
+    _platform_domain: str = DOMAIN
+
     def __init__(
         self,
         hass: HomeAssistant,
@@ -64,7 +71,19 @@ class OpenHABEntity(CoordinatorEntity):
         # HA 2026.2+ enforces strict entity ID validation and rejects raw
         # OpenHAB item names that contain uppercase letters or other characters
         # not permitted in entity IDs.
-        self.entity_id = f"{DOMAIN}.{self._nameid_prefix}{_slugify(self.item.name)}"
+        # The domain part must be the platform domain, not the integration
+        # domain. Entities already in the registry keep their stored entity_id,
+        # so this only affects the object id suggested for new entities.
+        if self._platform_domain == DOMAIN:
+            LOGGER.warning(
+                "%s does not define _platform_domain; entity_id for %s will use "
+                "the integration domain",
+                type(self).__name__,
+                self.item.name,
+            )
+        self.entity_id = (
+            f"{self._platform_domain}.{self._nameid_prefix}{_slugify(self.item.name)}"
+        )
 
         if self.item.unit_of_measure:
             self._attr_native_unit_of_measurement = str(self.item.unit_of_measure)
